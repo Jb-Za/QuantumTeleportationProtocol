@@ -33,13 +33,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 error_list = []
 def add_to_error(error_val):
-    error_percent = error_val/512 * 100
+    error_percent = error_val/128 * 100
     error_list.append(error_percent)
 
-def place_plot():
-    plt.plot(error_list)
-    plt.title('Transmission Error Rate', fontsize=14)
-    plt.xlabel('Bit Count', fontsize=14)
+def place_plot(plot_x, plot_y, plot, heading, x_axisHeading):
+    plt.clf()
+    plt.plot(plot)
+    plt.title(heading, fontsize=14)
+    plt.xlabel(x_axisHeading, fontsize=14)
     plt.ylabel('Error Percent', fontsize=14)
     img_buf = io.BytesIO()
     plt.savefig(img_buf, format='png')
@@ -47,7 +48,7 @@ def place_plot():
     tk_image = ImageTk.PhotoImage(im)
     chart= Label(canvas, image = tk_image)
     chart.image = tk_image
-    chart.place(x = 100, y = 400, width = 1000, height = 500)
+    chart.place(x = plot_x , y = plot_y, width = 650, height = 500)
     canvas.pack()
 
 def get_noise(p_meas,p_gate):
@@ -184,7 +185,7 @@ def createCircuit(eight_bits):
    
 def executeCircuits(circuits):
     noise_model = get_noise(meas_scale.get() / 100,gate_scale.get() / 100)
-    sim_result = qasm_sim.run(circuits, qasm_sim, noise_model = noise_model, shots = 10).result()
+    sim_result = qasm_sim.run(circuits, qasm_sim, noise_model = noise_model, shots = 128).result()
 
     returnBits = []
     for i in range(8):
@@ -229,9 +230,6 @@ def executeCircuits(circuits):
     return new_df
 
 
-
-
-
 saved_picture = None
 
 def send_image():
@@ -239,7 +237,8 @@ def send_image():
     global saved_picture
     completed_image = []
     circuitList = []
-
+    error_rate = []
+    
     columnCount = 0     
     if variable.get() == "80x80":
         columnCount = 80
@@ -249,8 +248,10 @@ def send_image():
         columnCount = 200
 
     sendPicture = saved_picture.resize((columnCount, columnCount))
-
+    
     bnw_picture = sendPicture.convert('1')
+    
+    
     sendPicture = np.array(bnw_picture)
     for i in range(int(repeaters.get()) + 1):
         circuitList = []
@@ -259,16 +260,33 @@ def send_image():
             circuitList = circuitList + circuitByte
         teleported = executeCircuits(circuitList)
         circuitList = [] #reset the list when done with it
-        place_plot()
+        place_plot(50 , 400, error_list , 'Hardware Error Rate' , 'Bit Count')
 
         completed_image = np.array(teleported)
+        
+        
+        error_count = 0
+        count = 0
+        for k in range(len(completed_image)):
+            for l in range(len(completed_image[k])):
+                if count >= 8:
+                    error_rate.append(error_count/8)
+                    error_count = 0
+                    count = 0
+                if completed_image[k][l] != sendPicture[k][l]:
+                    error_count = error_count + 1    
+                count = count + 1
+                
+        place_plot(800 , 400, error_rate, 'Transfer Error Rate per Byte', 'Byte Count')
+        
+        
         recieved_image = Image.fromarray(completed_image)
         recieved_image = recieved_image.resize((200, 200))
         tk_image = ImageTk.PhotoImage(recieved_image)
         uploaded_image= Label(canvas, image = tk_image)
         uploaded_image.image = tk_image
         
-        sendPicture = np.multiply(completed_image,1) # sets the next image in the loop to the results of the previous image 
+        sendPicture = np.multiply(completed_image,1) # sets the next image in the loop to the results of the previous image (convert true/false to 0/1)
 
         if i == 0:
             uploaded_image.place(x = 850, y = 25, width = 200, height = 200)
