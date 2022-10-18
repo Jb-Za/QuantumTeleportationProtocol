@@ -1,35 +1,30 @@
-from functools import reduce
+#from functools import reduce
+#from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+#from qiskit.tools.visualization import plot_histogram
+#from matplotlib.figure import Figure
+#from math import pi
+
 from qiskit import *
 import tkinter as tk
-from math import pi
 from ipywidgets.widgets import *
 from qiskit.tools.visualization import plot_histogram
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import math
 from tkinter import *
-from tkinter import filedialog
-from PIL import Image, ImageTk , ImageOps
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk 
 import numpy as np
 from qiskit.providers.aer.noise import NoiseModel
 import io
 from qiskit.providers.aer.noise import NoiseModel
 from qiskit.providers.aer.noise.errors import pauli_error, depolarizing_error
-from matplotlib.figure import Figure
 from qiskit.result import marginal_counts
-import operator
 import pandas as pd
 
-from sympy import re
 
-#provider = IBMQ.load_account()
-#ibmq_lima = provider.get_backend('ibmq_lima')
+
 qasm_sim = Aer.get_backend('qasm_simulator')
-#noise_model = NoiseModel.from_backend(ibmq_lima)
-
-from multiprocessing.pool import ThreadPool as Pool
-from dask.distributed import LocalCluster, Client
-from concurrent.futures import ThreadPoolExecutor
 
 error_list = []
 def add_to_error(error_val):
@@ -65,10 +60,6 @@ def get_noise(p_meas,p_gate):
 
 noise_model = get_noise(0.01,0.01)
 
-def chunker(seq, size):
-    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
-
-
 ############################# String message transferral #############################
 def string_to_binary(message):
     l = []
@@ -95,30 +86,26 @@ def binary_to_string(binary):
     m=m+chr(x) # returned as a string 
   return m
 
-def unpack_teleported(teleported):
-    binary_string = ''
-    for i in teleported:
-        for key, value in i.items():
-            binary_string = binary_string + key
-    return int(binary_string)
-
-def send_message():
+def send_message(): # retrieves the message from the input box, sends it to be turned into circuits and executed, then places the returned message into an output box. 
     recieved_binary_message = []
     message = input_display.get()
-    binary = string_to_binary(message)
     
-    for k in binary:
-        binary_string = str(k)
-        teleported = [ Send_Message(int(binary_string[i])) for i in range(len(binary_string)) ]
-        recieved_binary_message.append(int(''.join(str(e) for e in teleported)))
+    if message != 'Enter a message...':
+        binary = string_to_binary(message)
+        
+        for k in binary:
+            binary_string = str(k)
+            teleported = [ Send_Message(int(binary_string[i])) for i in range(len(binary_string)) ]
+            recieved_binary_message.append(int(''.join(str(e) for e in teleported)))
 
-    revieved_message = binary_to_string(recieved_binary_message)
-    output_display.delete(0, tk.END)
-    output_display.insert(0,revieved_message)
-
+        revieved_message = binary_to_string(recieved_binary_message)
+        output_display.delete(0, tk.END)
+        output_display.insert(0,revieved_message)
+    else:
+        messagebox.showerror("No Message", "Please type a message in the input box on the left")
  #Image.fromarray(pix)
 
-def Send_Message(binary):
+def Send_Message(binary): # creates and runs the circuits to send the message. 
     circuit = QuantumCircuit(3 , 1)
     # alice
     if binary == 1: # circuits values are 0 by default
@@ -147,8 +134,6 @@ def Send_Message(binary):
         add_to_error(error_val)
         return 0
 
-
-
 ############################# String message transferral #############################
 
 
@@ -164,7 +149,7 @@ def createCircuit(eight_bits):
         
     circuit.barrier()
     for i in range(8):    
-    # alice
+        # alice
         circuit.h(i + 8)
         circuit.cx(i+8 , i+16)
         circuit.cx(i , i+8)
@@ -180,8 +165,10 @@ def createCircuit(eight_bits):
 
     #circuit.draw(output='mpl')
     #plt.show()
-    
     return circuit
+
+
+
    
 def executeCircuits(circuits):
     noise_model = get_noise(meas_scale.get() / 100,gate_scale.get() / 100)
@@ -220,6 +207,7 @@ def executeCircuits(circuits):
         columnCount = 160
     if variable.get() == "200x200": 
         columnCount = 200
+    
 
     returnBits_df = pd.DataFrame(returnBits).T
     new_df = []
@@ -229,6 +217,8 @@ def executeCircuits(circuits):
     #print(new_df)
     return new_df
 
+def chunker(seq, size): # used to iterate through the list in 'chunks' without needing to store them
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 saved_picture = None
 
@@ -238,63 +228,68 @@ def send_image():
     completed_image = []
     circuitList = []
     error_rate = []
-    
-    columnCount = 0     
-    if variable.get() == "80x80":
-        columnCount = 80
-    if variable.get() == "160x160":
-        columnCount = 160
-    if variable.get() == "200x200": 
-        columnCount = 200
 
-    sendPicture = saved_picture.resize((columnCount, columnCount))
-    
-    bnw_picture = sendPicture.convert('1')
-    
-    
-    sendPicture = np.array(bnw_picture)
-    for i in range(int(repeaters.get()) + 1):
-        circuitList = []
-        for column in sendPicture:
-            circuitByte = [createCircuit(bits) for bits in chunker(column , 8)]
-            circuitList = circuitList + circuitByte
-        teleported = executeCircuits(circuitList)
-        circuitList = [] #reset the list when done with it
-        place_plot(50 , 400, error_list , 'Hardware Error Rate' , 'Bit Count')
+    if saved_picture:
+        columnCount = 0     
+        if variable.get() == "80x80":
+            columnCount = 80
+        if variable.get() == "160x160":
+            columnCount = 160
+        if variable.get() == "200x200": 
+            columnCount = 200
 
-        completed_image = np.array(teleported)
+        sendPicture = saved_picture.resize((columnCount, columnCount))
+        
+        bnw_picture = sendPicture.convert('1')
         
         
-        error_count = 0
-        count = 0
-        for k in range(len(completed_image)):
-            for l in range(len(completed_image[k])):
-                if count >= 8:
-                    error_rate.append(error_count/8)
-                    error_count = 0
-                    count = 0
-                if completed_image[k][l] != sendPicture[k][l]:
-                    error_count = error_count + 1    
-                count = count + 1
-                
-        place_plot(800 , 400, error_rate, 'Transfer Error Rate per Byte', 'Byte Count')
-        
-        
-        recieved_image = Image.fromarray(completed_image)
-        recieved_image = recieved_image.resize((200, 200))
-        tk_image = ImageTk.PhotoImage(recieved_image)
-        uploaded_image= Label(canvas, image = tk_image)
-        uploaded_image.image = tk_image
-        
-        sendPicture = np.multiply(completed_image,1) # sets the next image in the loop to the results of the previous image (convert true/false to 0/1)
+        sendPicture = np.array(bnw_picture)
+        for i in range(int(repeaters.get()) + 1):
+            circuitList = []
+            for column in sendPicture:
+                circuitByte = [createCircuit(bits) for bits in chunker(column , 8)]
+                circuitList = circuitList + circuitByte
+            teleported = executeCircuits(circuitList)
+            circuitList = [] #reset the list when done with it
+            place_plot(50 , 400, error_list , 'Hardware Error Rate' , 'Bit Count')
 
-        if i == 0:
-            uploaded_image.place(x = 850, y = 25, width = 200, height = 200)
-        if i == 1:
-            uploaded_image.place(x = 1060, y = 25, width = 200, height = 200)
-        if i == 2:
-            uploaded_image.place(x = 1270, y = 25, width = 200, height = 200)
+            completed_image = np.array(teleported)
+            
+            
+            error_count = 0
+            count = 0
+            for k in range(len(completed_image)):
+                for l in range(len(completed_image[k])):
+                    if count >= 8:
+                        error_rate.append(error_count/8)
+                        error_count = 0
+                        count = 0
+                    if completed_image[k][l] != sendPicture[k][l]:
+                        error_count = error_count + 1    
+                    count = count + 1
+                    
+            place_plot(800 , 400, error_rate, 'Transfer Error Rate per Byte', 'Byte Count')
+            
+            
+            error_label = tk.Label(master = canvas, text = "Total bits that were different between transferral(s): " + str(sum(error_rate) * 8))
+            error_label.place(x=850,y=400,width=400.0,height=25.0)
+            
+            recieved_image = Image.fromarray(completed_image)
+            recieved_image = recieved_image.resize((200, 200))
+            tk_image = ImageTk.PhotoImage(recieved_image)
+            uploaded_image= Label(canvas, image = tk_image)
+            uploaded_image.image = tk_image
+            
+            sendPicture = np.multiply(completed_image,1) # sets the next image in the loop to the results of the previous image (convert true/false to 0/1)
 
+            if i == 0:
+                uploaded_image.place(x = 850, y = 25, width = 200, height = 200)
+            if i == 1:
+                uploaded_image.place(x = 1060, y = 25, width = 200, height = 200)
+            if i == 2:
+                uploaded_image.place(x = 1270, y = 25, width = 200, height = 200)
+    else:
+        messagebox.showerror("No Image", "Please upload an image")
 
 # (11111111 ,11111111 ,11111111 )  each pixel required to send a colored image is 3 bytes long... 24x transmission time.
 
@@ -328,7 +323,7 @@ canvas = Canvas(
     )
 
 meas_scale = Scale(master = canvas, from_=0, to=100,orient="horizontal")
-gate_scale = Scale(master = canvas, from_=0, to=133,orient="horizontal")
+gate_scale = Scale(master = canvas, from_=1, to=133,orient="horizontal")
 OPTIONS = [
     "80x80",
     "160x160",
@@ -424,3 +419,13 @@ def createFrontend():
 
 if __name__ == '__main__':
     createFrontend()
+
+
+
+
+def unpack_teleported(teleported): # a useful function to keep around for debugging, isnt used in final code.
+    binary_string = ''
+    for i in teleported:
+        for key, value in i.items():
+            binary_string = binary_string + key
+    return int(binary_string)
