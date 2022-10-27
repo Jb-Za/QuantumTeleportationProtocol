@@ -12,9 +12,11 @@ c:\>python -m venv c:\path\to\myenv
 
 Once you are in that environment, you will need to install the dependancies 
 
-pip install qiskit
-pip install qiskit[visualization]
-pip install -r requirements.txt
+$ pip install qiskit
+
+$ pip install qiskit[visualization]
+
+$ pip install -r requirements.txt
 
 
 ![alt text](https://i.imgur.com/YuJGkqx.png)
