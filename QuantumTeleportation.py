@@ -124,9 +124,10 @@ def Send_Message(binary): # creates and runs the circuits to send the message.
 
     #circuit.draw(output='mpl')
     #plt.show()
-    sim_result = qasm_sim.run(circuit, qasm_sim, noise_model = noise_model, shots = 512, optimization_level = 3).result()
-    if sim_result.get_counts()[str(1)] > sim_result.get_counts()[str(0)]:
-        error_val = sim_result.get_counts()[str(0)]
+    noise_model = get_noise(meas_scale.get() / 100,gate_scale.get() / 100) #get the measurements from the ui sliders
+    sim_result = qasm_sim.run(circuit, qasm_sim, noise_model = noise_model, shots = 512, optimization_level = 3).result() # executes the circuit
+    if sim_result.get_counts()[str(1)] > sim_result.get_counts()[str(0)]: # hardware error comes with the number of shots taken. for quantum it will simulate
+        error_val = sim_result.get_counts()[str(0)]                       # the circuit 512 times, and the results will be shown as 98% bit = 0 and 2% bit = 1  
         add_to_error(error_val)
         return 1
     else:
@@ -163,7 +164,7 @@ def createCircuit(eight_bits):
     for i in range(8):      
         circuit.measure(i + 16, i ) # measure q2 and store into classical register 0
 
-    #circuit.draw(output='mpl')
+    #circuit.draw(output='mpl', fold= -1)
     #plt.show()
     return circuit
 
@@ -171,15 +172,15 @@ def createCircuit(eight_bits):
 
    
 def executeCircuits(circuits):
-    noise_model = get_noise(meas_scale.get() / 100,gate_scale.get() / 100)
+    noise_model = get_noise(meas_scale.get() / 100,gate_scale.get() / 100) #get the measurements from the ui sliders
     sim_result = qasm_sim.run(circuits, qasm_sim, noise_model = noise_model, shots = 128).result()
 
     returnBits = []
     for i in range(8):
         #print(counts)
         column = []
-        for counts in marginal_counts(sim_result ,indices=[i]).get_counts():
-            if str(1) in counts.keys() and str(0) in counts.keys(): 
+        for counts in marginal_counts(sim_result ,indices=[i]).get_counts(): # need to get the error values out of the resulted circuit execution
+            if str(1) in counts.keys() and str(0) in counts.keys(): # circuit can return {1 and 0} (some error) or {1} (no error) or {0} (no error). 
                 if counts[str(1)] > counts[str(0)]:
                     error_val = counts[str(0)]
                     add_to_error(error_val)
@@ -209,10 +210,10 @@ def executeCircuits(circuits):
         columnCount = 200
     
 
-    returnBits_df = pd.DataFrame(returnBits).T
+    returnBits_df = pd.DataFrame(returnBits).T # transpose the dataframe
     new_df = []
     for i in range(columnCount):
-        new_df.insert( i , (returnBits_df.iloc[ int(columnCount / 8) * i : int(columnCount / 8) * (i + 1)]).to_numpy().flatten().tolist() )
+        new_df.insert( i , (returnBits_df.iloc[ int(columnCount / 8) * i : int(columnCount / 8) * (i + 1)]).to_numpy().flatten().tolist() ) # and change it to a list so that the image library can convert it to an image
         
     #print(new_df)
     return new_df
@@ -261,17 +262,17 @@ def send_image():
             for k in range(len(completed_image)):
                 for l in range(len(completed_image[k])):
                     if count >= 8:
-                        error_rate.append(error_count/8)
+                        error_rate.append(error_count/8 * 100)
                         error_count = 0
                         count = 0
                     if completed_image[k][l] != sendPicture[k][l]:
                         error_count = error_count + 1    
                     count = count + 1
                     
-            place_plot(800 , 400, error_rate, 'Transfer Error Rate per Byte', 'Byte Count')
+            place_plot(800 , 400, error_rate , 'Transfer Error Rate per Byte', 'Byte Count')
             
             
-            error_label = tk.Label(master = canvas, text = "Total bits that were different between transferral(s): " + str(sum(error_rate) * 8))
+            error_label = tk.Label(master = canvas, text = "Total bits that were different between transferral(s): " + str(sum(error_rate)/1000 * 8))
             error_label.place(x=850,y=400,width=400.0,height=25.0)
             
             recieved_image = Image.fromarray(completed_image)
