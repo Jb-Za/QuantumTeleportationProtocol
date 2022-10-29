@@ -1,4 +1,4 @@
-# QuantumTeleportationProtocol
+# Quantum Teleportation Protocol for a quantum internet
 A Quantum Teleportation Protocol  used to transfer images using Qiskit and Python 3 
 
 Installation: 
@@ -17,7 +17,6 @@ $ pip install qiskit
 $ pip install qiskit[visualization]
 
 $ pip install -r requirements.txt
-
 
 ![alt text](https://i.imgur.com/YuJGkqx.png)
 
