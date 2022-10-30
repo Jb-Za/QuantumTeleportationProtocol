@@ -22,7 +22,11 @@ from qiskit.providers.aer.noise.errors import pauli_error, depolarizing_error
 from qiskit.result import marginal_counts
 import pandas as pd
 
+#key = ''
+#IBMQ.save_account(key, overwrite=True) 
+#provider = IBMQ.load_account()
 
+#backend = provider.get_backend('ibm_oslo')
 
 qasm_sim = Aer.get_backend('qasm_simulator')
 
@@ -95,7 +99,7 @@ def send_message(): # retrieves the message from the input box, sends it to be t
         
         for k in binary:
             binary_string = str(k)
-            teleported = [ Send_Message(int(binary_string[i])) for i in range(len(binary_string)) ]
+            teleported = [ Send_Message(int(binary_string[i])) for i in range(len(binary_string)) ] #loops through each 'bit' in the binary string and sends it to the circuit
             recieved_binary_message.append(int(''.join(str(e) for e in teleported)))
 
         revieved_message = binary_to_string(recieved_binary_message)
@@ -248,9 +252,9 @@ def send_image():
         for i in range(int(repeaters.get()) + 1):
             circuitList = []
             for column in sendPicture:
-                circuitByte = [createCircuit(bits) for bits in chunker(column , 8)]
+                circuitByte = [createCircuit(bits) for bits in chunker(column , 8)] #chunks up the image array in bits of 8 and sends that off to be turned into an 8 bit teleportation circuit
                 circuitList = circuitList + circuitByte
-            teleported = executeCircuits(circuitList)
+            teleported = executeCircuits(circuitList) # executing them all at once, in order to cut down the processing time.
             circuitList = [] #reset the list when done with it
             place_plot(50 , 400, error_list , 'Hardware Error Rate' , 'Bit Count')
 
@@ -272,7 +276,7 @@ def send_image():
             place_plot(800 , 400, error_rate , 'Transfer Error Rate per Byte', 'Byte Count')
             
             
-            error_label = tk.Label(master = canvas, text = "Total bits that were different between transferral(s): " + str(sum(error_rate)/1000 * 8))
+            error_label = tk.Label(master = canvas, text = "Total bits that were different between transferral(s): " + str(sum(error_rate)/100 * 8))
             error_label.place(x=850,y=400,width=400.0,height=25.0)
             
             recieved_image = Image.fromarray(completed_image)
